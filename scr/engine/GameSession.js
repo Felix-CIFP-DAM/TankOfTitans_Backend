@@ -5,26 +5,32 @@ import { GAME_CONFIG } from '../core/constants/TankStats.js';
 export class GameSession {
     constructor(gameId, player1, player2) {
         this.gameId = gameId;
-        // Almacenamos los jugadores indexados por su ID para acceso rápido
         this.players = {
             [player1.id]: player1,
             [player2.id]: player2
         };
         this.tanks = [];
-        this.turnOwnerId = player1.id; // Por defecto empieza el Jugador 1
-        this.status = 'WAITING'; // Estados: WAITING, PLAYING, FINISHED
+        this.turnOwnerId = player1.id;
+        this.status = 'WAITING';
         
-        // Temporizador: 15 minutos (convertidos a segundos)
         this.timeLeft = GAME_CONFIG.GAME_DURATION_MIN * 60;
         this.timerInterval = null;
     }
 
+    //Comprueba si ambos jugadores tienen sus 3 tanques seleccionados.
+
+    canStart() {
+        // Corregido: .length (no .lenght)
+        return Object.values(this.players).every(p => p.selectedTanks.length === 3);
+    }
+
     //Prepara el tablero, coloca los tanques y arranca el cronómetro.
 
-    initGame() {
-
-        canStart() {
-            return Object.values(this.players).every(p => p.selectedTanks.lenght === 3);
+    initGame(onTick) {
+        // Validamos si podemos empezar antes de ejecutar la lógica
+        if (!this.canStart()) {
+            console.error("No se puede iniciar: Faltan tanques por elegir");
+            return false;
         }
 
         const playerIds = Object.keys(this.players);
@@ -33,10 +39,9 @@ export class GameSession {
             const player = this.players[pid];
             player.pa = GAME_CONFIG.INITIAL_PA;
 
-            // Posicionamiento inicial: P1 a la izquierda (x=0), P2 a la derecha (x=9)
             player.selectedTanks.forEach((type, i) => {
                 const startX = index === 0 ? 0 : 9;
-                const startY = i * 2; // Espaciados verticalmente
+                const startY = i * 2; 
                 const tankId = `tank_${pid}_${i}`;
                 
                 this.tanks.push(new Tank(tankId, type, pid, { x: startX, y: startY }));
@@ -44,16 +49,15 @@ export class GameSession {
         });
 
         this.status = 'PLAYING';
-        this.startTimer();
+        this.startTimer(onTick);
+        return true;
     }
 
     //Inicia el contador regresivo en el servidor.
-
     startTimer(onTick) {
         this.timerInterval = setInterval(() => {
             this.timeLeft--;
             
-            // Cada segundo, ejecutamos la función que nos pasen desde fuera
             if (onTick) onTick(this.timeLeft);
 
             if (this.timeLeft <= 0) {
@@ -62,7 +66,7 @@ export class GameSession {
         }, 1000);
     }
 
-    //Lógica de movimiento con validación de PA y rango.
+    //Lógica de movimiento con validación de PA, rango y ocupación.
 
     moveTank(playerId, tankId, newX, newY) {
         if (this.status !== 'PLAYING') return { error: "La partida no está activa" };
@@ -74,15 +78,16 @@ export class GameSession {
         if (!tank || !tank.isAlive()) return { error: "Tanque no disponible" };
         if (tank.hasMoved) return { error: "Este tanque ya se ha movido este turno" };
         if (player.pa < GAME_CONFIG.COSTS.MOVE) return { error: "Puntos de Acción (PA) insuficientes" };
-        if (CombatLogic.isTileOccupied(newX, newY, this.tanks)) return { error: "La casilla de destino está ocupada" };
         
-        if (CombatLogic.isValidMove(tank, newX, newY)) {
+        // Comprobar si el movimiento es válido y la casilla está libre
+        // Pasamos this.tanks para que CombatLogic pueda revisar si hay alguien más allí
+        if (CombatLogic.isValidMove(tank, newX, newY, this.tanks)) {
             tank.moveTo(newX, newY);
             player.pa -= GAME_CONFIG.COSTS.MOVE;
             return { success: true, tank, remainingPA: player.pa };
         }
         
-        return { error: "La casilla está fuera del alcance de movimiento" };
+        return { error: "Movimiento inválido (fuera de rango o casilla ocupada)" };
     }
 
     //Lógica de ataque con cálculo de daño y validación de rango.
@@ -105,7 +110,6 @@ export class GameSession {
             attacker.hasAttacked = true;
             player.pa -= GAME_CONFIG.COSTS.ATTACK;
 
-            // Verificar si tras el golpe alguien ha ganado
             const destructionResult = this.checkDestructionVictory();
             
             return { 
@@ -127,10 +131,7 @@ export class GameSession {
         const ids = Object.keys(this.players);
         this.turnOwnerId = (this.turnOwnerId === ids[0]) ? ids[1] : ids[0];
         
-        // Resetear PA del nuevo jugador activo
         this.players[this.turnOwnerId].pa = GAME_CONFIG.INITIAL_PA;
-        
-        // Resetear banderas de acción de sus tanques
         this.tanks
             .filter(t => t.ownerId === this.turnOwnerId)
             .forEach(t => t.resetActions());
@@ -178,7 +179,10 @@ export class GameSession {
 
     finishGame(winnerId, reason) {
         this.status = 'FINISHED';
-        if (this.timerInterval) clearInterval(this.timerInterval);
+        if (this.timerInterval) {
+            clearInterval(this.timerInterval);
+            this.timerInterval = null;
+        }
 
         return {
             gameId: this.gameId,

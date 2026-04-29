@@ -37,4 +37,9 @@ export class CombatLogic {
         const distance = Math.abs(tank.x - targetX) + Math.abs(tank.y - targetY);
         return distance <= tank.moveRange;
     }
+
+    //Verifica si la casilla de destino ya está ocupada por otro tanque.
+    static isTileOccupied(targetX, targetY, allTanks) {
+    return allTanks.some(t => t.isAlive() && t.x === targetX && t.y === targetY);
+    }
 }
