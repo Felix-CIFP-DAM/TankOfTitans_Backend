@@ -17,15 +17,17 @@ export class GameSession {
         this.timerInterval = null;
     }
 
-    //Comprueba si ambos jugadores tienen sus 3 tanques seleccionados.
-
+    /**
+     * Comprueba si ambos jugadores tienen sus 3 tanques seleccionados.
+     */
     canStart() {
         // Corregido: .length (no .lenght)
         return Object.values(this.players).every(p => p.selectedTanks.length === 3);
     }
 
-    //Prepara el tablero, coloca los tanques y arranca el cronómetro.
-
+    /**
+     * Prepara el tablero, coloca los tanques y arranca el cronómetro.
+     */
     initGame(onTick) {
         // Validamos si podemos empezar antes de ejecutar la lógica
         if (!this.canStart()) {
@@ -53,7 +55,9 @@ export class GameSession {
         return true;
     }
 
-    //Inicia el contador regresivo en el servidor.
+    /**
+     * Inicia el contador regresivo en el servidor.
+     */
     startTimer(onTick) {
         this.timerInterval = setInterval(() => {
             this.timeLeft--;
@@ -66,8 +70,9 @@ export class GameSession {
         }, 1000);
     }
 
-    //Lógica de movimiento con validación de PA, rango y ocupación.
-
+    /**
+     * Lógica de movimiento con validación de PA, rango y ocupación.
+     */
     moveTank(playerId, tankId, newX, newY) {
         if (this.status !== 'PLAYING') return { error: "La partida no está activa" };
         if (this.turnOwnerId !== playerId) return { error: "No es tu turno" };
@@ -90,8 +95,9 @@ export class GameSession {
         return { error: "Movimiento inválido (fuera de rango o casilla ocupada)" };
     }
 
-    //Lógica de ataque con cálculo de daño y validación de rango.
-
+    /**
+     * Lógica de ataque con cálculo de daño y validación de rango.
+     */
     attackTank(playerId, attackerId, targetId) {
         if (this.status !== 'PLAYING') return { error: "La partida no está activa" };
         if (this.turnOwnerId !== playerId) return { error: "No es tu turno" };
@@ -125,8 +131,9 @@ export class GameSession {
         return { error: "El objetivo está fuera del rango de ataque" };
     }
 
-    //Cambia el turno al oponente y regenera recursos.
-
+    /**
+     * Cambia el turno al oponente y regenera recursos.
+     */
     nextTurn() {
         const ids = Object.keys(this.players);
         this.turnOwnerId = (this.turnOwnerId === ids[0]) ? ids[1] : ids[0];
@@ -139,8 +146,9 @@ export class GameSession {
         return { currentTurn: this.turnOwnerId, pa: GAME_CONFIG.INITIAL_PA };
     }
 
-    //Gestiona el abandono de un jugador.
-
+    /**
+     * Gestiona el abandono de un jugador.
+     */
     handleAbandonment(leaverId) {
         if (this.status === 'FINISHED') return;
 
@@ -150,8 +158,9 @@ export class GameSession {
         return this.finishGame(winnerId, "ABANDONMENT");
     }
 
-    //Verifica si un jugador ha perdido todos sus tanques.
-
+    /**
+     * Verifica si un jugador ha perdido todos sus tanques.
+     */
     checkDestructionVictory() {
         const playerIds = Object.keys(this.players);
         const p1Alive = this.tanks.filter(t => t.ownerId === playerIds[0] && t.isAlive()).length;
@@ -163,8 +172,9 @@ export class GameSession {
         return null;
     }
 
-    //Define el ganador cuando se acaba el tiempo.
-
+    /**
+     * Define el ganador cuando se acaba el tiempo.
+     */
     calculateTimeUpWinner() {
         const ids = Object.keys(this.players);
         const p1Alive = this.tanks.filter(t => t.ownerId === ids[0] && t.isAlive()).length;
@@ -175,8 +185,9 @@ export class GameSession {
         return "DRAW"; 
     }
 
-    //Cierra la partida y limpia procesos.
-
+    /**
+     * Cierra la partida y limpia procesos.
+     */
     finishGame(winnerId, reason) {
         this.status = 'FINISHED';
         if (this.timerInterval) {
