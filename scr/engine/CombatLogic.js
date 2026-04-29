@@ -1,12 +1,9 @@
-/**
- * Clase encargada de los cálculos matemáticos y validaciones de reglas.
- * No guarda estado (stateless), solo procesa lo que recibe.
- */
+
 export class CombatLogic {
     
-    /**
-     * Calcula el daño final basado en ataque/defensa y un factor aleatorio.
-     */
+    
+     //Calcula el daño final basado en ataque/defensa y un factor aleatorio.
+     
     static calculateDamage(attacker, defender) {
         const baseDamage = (attacker.attack / defender.defense) * 50;
         
@@ -16,24 +13,24 @@ export class CombatLogic {
         return Math.round(baseDamage * randomMultiplier);
     }
 
-    /**
-     * Calcula la distancia Manhattan entre dos objetos con coordenadas x e y.
-     */
+    
+     //Calcula la distancia Manhattan entre dos objetos con coordenadas x e y.
+    
     static getDistance(objA, objB) {
         return Math.abs(objA.x - objB.x) + Math.abs(objA.y - objB.y);
     }
 
-    /**
-     * Valida si el objetivo está dentro del rango de ataque.
-     */
+    
+     //Valida si el objetivo está dentro del rango de ataque.
+     
     static isInRange(attacker, defender) {
         const distance = this.getDistance(attacker, defender);
         return distance <= attacker.attackRange;
     }
 
-    /**
-     * Verifica si una casilla específica está ocupada por algún tanque vivo.
-     */
+    
+     //Verifica si una casilla específica está ocupada por algún tanque vivo.
+     
     static isTileOccupied(targetX, targetY, allTanks) {
         return allTanks.some(t => t.isAlive() && t.x === targetX && t.y === targetY);
     }
