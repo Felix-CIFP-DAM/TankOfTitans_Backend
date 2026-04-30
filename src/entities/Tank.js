@@ -14,7 +14,7 @@ export class Tank {
         this.attackRange = stats.attackRange;
         this.x = position.x;
         this.y = position.y;
-        this.hasMoved = false; // Útil para la regla de la Artillería
+        this.hasMoved = false; // Útil para la regla de la Artillería por si queremos añadirla
         this.hasAttacked = false;
     }
 
