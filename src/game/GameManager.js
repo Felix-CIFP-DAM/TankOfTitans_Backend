@@ -1,0 +1,1 @@
+//gestiona todas las activas en la memoria

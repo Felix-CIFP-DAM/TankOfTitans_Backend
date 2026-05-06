@@ -1,0 +1,27 @@
+{
+  "name": "tankoftitans_backend",
+  "version": "1.0.0",
+  "description": "Repositorio del backend del proyecto de Daniel, Hugo Zapico, Jhonata y Felix",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Felix-CIFP-DAM/TankOfTitans_Backend.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Felix-CIFP-DAM/TankOfTitans_Backend/issues"
+  },
+  "homepage": "https://github.com/Felix-CIFP-DAM/TankOfTitans_Backend#readme",
+  "dependencies": {
+    "axios": "^1.16.0",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "socket.io": "^4.8.3"
+  }
+}

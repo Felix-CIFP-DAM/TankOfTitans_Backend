@@ -1,0 +1,1 @@
+//configuracion de socket.io (cors, opciones)

@@ -1,0 +1,1 @@
+//crea tanques con sus stats segun sus tipos

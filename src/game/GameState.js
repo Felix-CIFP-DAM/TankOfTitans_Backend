@@ -1,0 +1,1 @@
+//clase que representa el estado de una partida en la memoria

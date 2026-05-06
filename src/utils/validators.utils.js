@@ -1,0 +1,1 @@
+//validar movimientos, ataques y posiciones del tablero

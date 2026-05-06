@@ -1,0 +1,1 @@
+//valida que el usuario este en la partida correcta
