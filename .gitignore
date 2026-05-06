@@ -1,0 +1,12 @@
+# Ignorar carpetas
+node_modules/
+bin/
+obj/
+
+# Ignorar archivos específicos
+.env
+secrets.txt
+
+# Ignorar extensiones
+*.log
+*.tmp

@@ -1,0 +1,1 @@
+//temporizador de partida y guardado periodico
