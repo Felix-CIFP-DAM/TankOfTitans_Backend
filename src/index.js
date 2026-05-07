@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
+const apiService = require('./services/api.service');
 
 const app = express();
 app.use(express.json());
@@ -23,6 +24,15 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-    console.log(`Middleware arrancado en puerto ${PORT}`);
-});
+
+// Primero nos autenticamos en la API y luego arrancamos
+apiService.login()
+    .then(() => {
+        server.listen(PORT, () => {
+            console.log(`Middleware arrancado en puerto ${PORT}`);
+        });
+    })
+    .catch((error) => {
+        console.error('No se pudo conectar con la API:', error.message);
+        process.exit(1);
+    });;
