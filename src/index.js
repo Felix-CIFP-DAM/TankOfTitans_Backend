@@ -3,29 +3,56 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const apiService = require('./services/api.service');
+const socketConfig = require('./config/socket.config');
+const userManager = require('./utils/UserManager');
+const lobbyService = require('./services/lobby.service');
+
+const authHandler = require('./handlers/auth.handler');
+const lobbyHandler = require('./handlers/lobby.handler');
+const gameHandler = require('./handlers/game.handler');
 
 const app = express();
 app.use(express.json());
 
 const server = http.createServer(app);
-const io = new Server(server, {
-    cors: {
-        origin: '*',
-        methods: ['GET', 'POST']
-    }
-});
+const io = new Server(server, socketConfig);
 
 io.on('connection', (socket) => {
-    console.log('Cliente conectado:', socket.id);
+    console.log(`Cliente conectado: ${socket.id}`);
 
-    socket.on('disconnect', () => {
-        console.log('Cliente desconectado:', socket.id);
+    // Registra los handlers
+    authHandler(io, socket);
+    lobbyHandler(io, socket);
+    gameHandler(io, socket);
+
+    // Gestión de desconexión
+    socket.on('disconnect', async () => {
+        console.log(`Cliente desconectado: ${socket.id}`);
+
+        const user = userManager.getUser(socket.id);
+        if (user) {
+            // Si estaba en una partida de lobby, cambia el host
+            try {
+                const partida = await lobbyService.listarPartidas();
+                const partidaDelUsuario = partida.find(
+                    p => p.hostNickname === user.nickname
+                );
+                if (partidaDelUsuario) {
+                    await lobbyService.cambiarHost(
+                        partidaDelUsuario.id, user.id
+                    );
+                }
+            } catch (error) {
+                console.error('Error al gestionar desconexión:', error.message);
+            }
+
+            userManager.logoutUser(socket.id);
+        }
     });
 });
 
 const PORT = process.env.PORT || 3000;
 
-// Primero nos autenticamos en la API y luego arrancamos
 apiService.login()
     .then(() => {
         server.listen(PORT, () => {
@@ -35,4 +62,4 @@ apiService.login()
     .catch((error) => {
         console.error('No se pudo conectar con la API:', error.message);
         process.exit(1);
-    });;
+    });
