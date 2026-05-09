@@ -1,24 +1,21 @@
-const gameManager = require('../game/GameManager');
 const userManager = require('../utils/UserManager');
+const gameManager = require('../game/GameManager');
+const gameMiddleware = require('../middleware/game.middleware');
 
 module.exports = (io, socket) => {
 
     // Jugador selecciona sus 3 tanques
     socket.on('seleccionarTanques', (payload) => {
         try {
-            const user = userManager.getUser(socket.id);
-            if (!user) {
-                socket.emit('error', { error: 'No has iniciado sesión' });
-                return;
-            }
-
             const { partidaId, tipos } = payload;
-            const gameState = gameManager.get(partidaId);
 
-            if (!gameState) {
-                socket.emit('error', { error: 'Partida no encontrada' });
+            const check = gameMiddleware(socket, partidaId);
+            if (check.error) {
+                socket.emit('error', check);
                 return;
             }
+
+            const { user, gameState } = check;
 
             const resultado = gameState.seleccionarTanques(user.id, tipos);
             if (resultado.error) {
@@ -30,9 +27,7 @@ module.exports = (io, socket) => {
 
             // Si ambos jugadores han seleccionado arrancamos
             if (gameState.ambosListos()) {
-                const iniciado = gameState.iniciar((timeLeft) => {
-                    io.to(`game_${partidaId}`).emit('tick', { timeLeft });
-                });
+                const iniciado = gameState.iniciar();
 
                 if (iniciado.error) {
                     io.to(`game_${partidaId}`).emit('error', iniciado);
@@ -52,28 +47,22 @@ module.exports = (io, socket) => {
     // Mover un tanque
     socket.on('moverTanque', (payload) => {
         try {
-            const user = userManager.getUser(socket.id);
-            if (!user) {
-                socket.emit('error', { error: 'No has iniciado sesión' });
-                return;
-            }
-
             const { partidaId, tanqueId, targetX, targetY } = payload;
-            const gameState = gameManager.get(partidaId);
 
-            if (!gameState) {
-                socket.emit('error', { error: 'Partida no encontrada' });
+            const check = gameMiddleware(socket, partidaId);
+            if (check.error) {
+                socket.emit('error', check);
                 return;
             }
+
+            const { user, gameState } = check;
 
             const resultado = gameState.mover(user.id, tanqueId, targetX, targetY);
-
             if (resultado.error) {
                 socket.emit('error', resultado);
                 return;
             }
 
-            // Notifica a ambos jugadores el nuevo estado
             io.to(`game_${partidaId}`).emit('tanqueMovido', {
                 tanque: resultado.tanque,
                 paRestantes: resultado.paRestantes,
@@ -88,28 +77,22 @@ module.exports = (io, socket) => {
     // Atacar con un tanque
     socket.on('atacar', (payload) => {
         try {
-            const user = userManager.getUser(socket.id);
-            if (!user) {
-                socket.emit('error', { error: 'No has iniciado sesión' });
-                return;
-            }
-
             const { partidaId, atacanteId, defensorId } = payload;
-            const gameState = gameManager.get(partidaId);
 
-            if (!gameState) {
-                socket.emit('error', { error: 'Partida no encontrada' });
+            const check = gameMiddleware(socket, partidaId);
+            if (check.error) {
+                socket.emit('error', check);
                 return;
             }
+
+            const { user, gameState } = check;
 
             const resultado = gameState.atacar(user.id, atacanteId, defensorId);
-
             if (resultado.error) {
                 socket.emit('error', resultado);
                 return;
             }
 
-            // Notifica a ambos jugadores
             io.to(`game_${partidaId}`).emit('ataqueRealizado', {
                 daño: resultado.daño,
                 defensorId,
@@ -119,9 +102,10 @@ module.exports = (io, socket) => {
                 estado: gameState.getEstado()
             });
 
-            // Si la partida ha acabado notificamos
+            // Si la partida ha acabado notificamos y limpiamos
             if (resultado.finPartida) {
-                io.to(`game_${partidaId}`).emit('partidaFinalizada', resultado.finPartida);
+                io.to(`game_${partidaId}`).emit('partidaFinalizada',
+                    resultado.finPartida);
                 gameManager.delete(partidaId);
             }
 
@@ -133,28 +117,23 @@ module.exports = (io, socket) => {
     // Fin de turno
     socket.on('finTurno', (payload) => {
         try {
-            const user = userManager.getUser(socket.id);
-            if (!user) {
-                socket.emit('error', { error: 'No has iniciado sesión' });
-                return;
-            }
-
             const { partidaId } = payload;
-            const gameState = gameManager.get(partidaId);
 
-            if (!gameState) {
-                socket.emit('error', { error: 'Partida no encontrada' });
+            const check = gameMiddleware(socket, partidaId);
+            if (check.error) {
+                socket.emit('error', check);
                 return;
             }
+
+            const { user, gameState } = check;
 
             const resultado = gameState.finTurno(user.id);
-
             if (resultado.error) {
                 socket.emit('error', resultado);
                 return;
             }
 
-            io.to(`game_${partidaId}`).emit('turnocambiado', {
+            io.to(`game_${partidaId}`).emit('turnoCambiado', {
                 turnoActual: resultado.turnoActual,
                 pa: resultado.pa,
                 estado: gameState.getEstado()
@@ -166,23 +145,19 @@ module.exports = (io, socket) => {
     });
 
     // Abandono
-    socket.on('abandonar', async (payload) => {
+    socket.on('abandonar', (payload) => {
         try {
-            const user = userManager.getUser(socket.id);
-            if (!user) {
-                socket.emit('error', { error: 'No has iniciado sesión' });
-                return;
-            }
-
             const { partidaId } = payload;
-            const gameState = gameManager.get(partidaId);
 
-            if (!gameState) {
-                socket.emit('error', { error: 'Partida no encontrada' });
+            const check = gameMiddleware(socket, partidaId);
+            if (check.error) {
+                socket.emit('error', check);
                 return;
             }
 
-            const resultado = await gameState.abandonar(user.id);
+            const { user, gameState } = check;
+
+            const resultado = gameState.abandonar(user.id);
 
             io.to(`game_${partidaId}`).emit('partidaFinalizada', resultado);
             gameManager.delete(partidaId);
