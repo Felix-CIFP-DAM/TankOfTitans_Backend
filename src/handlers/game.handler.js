@@ -1,1 +1,169 @@
-//eventos Websocket del juego (mover, atacr, fin de turno)
+const userManager = require('../utils/UserManager');
+const gameManager = require('../game/GameManager');
+const gameMiddleware = require('../middleware/game.middleware');
+
+module.exports = (io, socket) => {
+
+    // Jugador selecciona sus 3 tanques
+    socket.on('seleccionarTanques', (payload) => {
+        try {
+            const { partidaId, tipos } = payload;
+
+            const check = gameMiddleware(socket, partidaId);
+            if (check.error) {
+                socket.emit('error', check);
+                return;
+            }
+
+            const { user, gameState } = check;
+
+            const resultado = gameState.seleccionarTanques(user.id, tipos);
+            if (resultado.error) {
+                socket.emit('error', resultado);
+                return;
+            }
+
+            socket.emit('tanquesSeleccionados', { success: true });
+
+            // Si ambos jugadores han seleccionado arrancamos
+            if (gameState.ambosListos()) {
+                const iniciado = gameState.iniciar();
+
+                if (iniciado.error) {
+                    io.to(`game_${partidaId}`).emit('error', iniciado);
+                    return;
+                }
+
+                io.to(`game_${partidaId}`).emit('partidaIniciada', {
+                    estado: gameState.getEstado()
+                });
+            }
+
+        } catch (error) {
+            socket.emit('error', { error: error.message });
+        }
+    });
+
+    // Mover un tanque
+    socket.on('moverTanque', (payload) => {
+        try {
+            const { partidaId, tanqueId, targetX, targetY } = payload;
+
+            const check = gameMiddleware(socket, partidaId);
+            if (check.error) {
+                socket.emit('error', check);
+                return;
+            }
+
+            const { user, gameState } = check;
+
+            const resultado = gameState.mover(user.id, tanqueId, targetX, targetY);
+            if (resultado.error) {
+                socket.emit('error', resultado);
+                return;
+            }
+
+            io.to(`game_${partidaId}`).emit('tanqueMovido', {
+                tanque: resultado.tanque,
+                paRestantes: resultado.paRestantes,
+                estado: gameState.getEstado()
+            });
+
+        } catch (error) {
+            socket.emit('error', { error: error.message });
+        }
+    });
+
+    // Atacar con un tanque
+    socket.on('atacar', (payload) => {
+        try {
+            const { partidaId, atacanteId, defensorId } = payload;
+
+            const check = gameMiddleware(socket, partidaId);
+            if (check.error) {
+                socket.emit('error', check);
+                return;
+            }
+
+            const { user, gameState } = check;
+
+            const resultado = gameState.atacar(user.id, atacanteId, defensorId);
+            if (resultado.error) {
+                socket.emit('error', resultado);
+                return;
+            }
+
+            io.to(`game_${partidaId}`).emit('ataqueRealizado', {
+                daño: resultado.daño,
+                defensorId,
+                defensorHp: resultado.defensorHp,
+                defensorMuerto: resultado.defensorMuerto,
+                paRestantes: resultado.paRestantes,
+                estado: gameState.getEstado()
+            });
+
+            // Si la partida ha acabado notificamos y limpiamos
+            if (resultado.finPartida) {
+                io.to(`game_${partidaId}`).emit('partidaFinalizada',
+                    resultado.finPartida);
+                gameManager.delete(partidaId);
+            }
+
+        } catch (error) {
+            socket.emit('error', { error: error.message });
+        }
+    });
+
+    // Fin de turno
+    socket.on('finTurno', (payload) => {
+        try {
+            const { partidaId } = payload;
+
+            const check = gameMiddleware(socket, partidaId);
+            if (check.error) {
+                socket.emit('error', check);
+                return;
+            }
+
+            const { user, gameState } = check;
+
+            const resultado = gameState.finTurno(user.id);
+            if (resultado.error) {
+                socket.emit('error', resultado);
+                return;
+            }
+
+            io.to(`game_${partidaId}`).emit('turnoCambiado', {
+                turnoActual: resultado.turnoActual,
+                pa: resultado.pa,
+                estado: gameState.getEstado()
+            });
+
+        } catch (error) {
+            socket.emit('error', { error: error.message });
+        }
+    });
+
+    // Abandono
+    socket.on('abandonar', (payload) => {
+        try {
+            const { partidaId } = payload;
+
+            const check = gameMiddleware(socket, partidaId);
+            if (check.error) {
+                socket.emit('error', check);
+                return;
+            }
+
+            const { user, gameState } = check;
+
+            const resultado = gameState.abandonar(user.id);
+
+            io.to(`game_${partidaId}`).emit('partidaFinalizada', resultado);
+            gameManager.delete(partidaId);
+
+        } catch (error) {
+            socket.emit('error', { error: error.message });
+        }
+    });
+};
