@@ -16,10 +16,15 @@ module.exports = (io, socket) => {
                 return;
             }
 
-            await authService.register(nombre, nickname, email, password);
+            const user = await authService.register(nombre, nickname, email, password);
+
+            const token = generateToken(user.id, user.nickname);
 
             socket.emit('registerSuccess', {
-                message: 'Usuario registrado correctamente'
+                message: 'Usuario registrado correctamente',
+                token,
+                userId: user.id,
+                nickname: user.nickname
             });
 
         } catch (error) {
