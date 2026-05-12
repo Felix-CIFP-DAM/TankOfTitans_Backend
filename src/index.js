@@ -11,6 +11,7 @@ const authMiddleware = require('./middleware/auth.middleware');
 const authHandler = require('./handlers/auth.handler');
 const lobbyHandler = require('./handlers/lobby.handler');
 const gameHandler = require('./handlers/game.handler');
+const perfilHandler = require('./handlers/perfil.handler');
 
 const app = express();
 app.use(express.json());
@@ -27,6 +28,7 @@ io.on('connection', (socket) => {
     authHandler(io, socket);
     lobbyHandler(io, socket);
     gameHandler(io, socket);
+    perfilHandler(io, socket);
 
     socket.on('disconnect', async () => {
         console.log(`Cliente desconectado: ${socket.id}`);
