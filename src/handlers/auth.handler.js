@@ -29,7 +29,8 @@ module.exports = (io, socket) => {
                 nombre:      user.nombre   || nombre,    // del objeto usuario o del payload
                 nickname:    user.nickname || nickname,
                 icono:       user.icono    || 0,
-                iconoImagen: 'recluta.png'               // avatar por defecto para nuevos usuarios
+                iconoImagen: 'recluta.png',
+                rol:         user.rol      || 'USER'
             });
 
         } catch (error) {
@@ -60,7 +61,8 @@ module.exports = (io, socket) => {
                 nombre: userData.nombre,
                 nickname: userData.nickname,
                 icono: userData.icono,
-                iconoImagen: userData.iconoImagen
+                iconoImagen: userData.iconoImagen,
+                rol: userData.rol
             });
 
             // Generamos token del middleware para esta sesión
@@ -80,7 +82,8 @@ module.exports = (io, socket) => {
                 nombre:       userData.nombre,
                 nickname:     userData.nickname,
                 icono:        userData.icono,
-                iconoImagen:  userData.iconoImagen
+                iconoImagen:  userData.iconoImagen,
+                rol:          userData.rol
             });
 
         } catch (error) {

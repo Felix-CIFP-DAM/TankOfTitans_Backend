@@ -54,6 +54,22 @@ class LobbyService {
     async cambiarHost(partidaId, hostActualId) {
         return await apiService.put(`/api/lobby/cambiarHost/${partidaId}/${hostActualId}`);
     }
+
+    // Seleccionar tanque
+    async seleccionarTanque(usuarioId, partidaId, tanqueId) {
+        return await apiService.post(`/api/lobby/seleccionarTanque/${partidaId}`, {
+            usuarioId,
+            tanqueId
+        });
+    }
+
+    // Deseleccionar tanque
+    async deseleccionarTanque(usuarioId, partidaId, tanqueId) {
+        return await apiService.post(`/api/lobby/deseleccionarTanque/${partidaId}`, {
+            usuarioId,
+            tanqueId
+        });
+    }
 }
 
 module.exports = new LobbyService();
