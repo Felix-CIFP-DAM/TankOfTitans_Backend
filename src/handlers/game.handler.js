@@ -7,6 +7,7 @@ module.exports = (io, socket) => {
     // Jugador selecciona sus 3 tanques
     socket.on('seleccionarTanques', (payload) => {
         try {
+            console.log('[BACKEND][game.handler] 📥 Evento seleccionarTanques recibido:', payload.partidaId);
             const { partidaId, tipos } = payload;
 
             const check = gameMiddleware(socket, partidaId);
@@ -47,6 +48,7 @@ module.exports = (io, socket) => {
     // Mover un tanque
     socket.on('moverTanque', (payload) => {
         try {
+            console.log('[BACKEND][game.handler] 📥 Evento moverTanque recibido:', payload.partidaId);
             const { partidaId, tanqueId, targetX, targetY } = payload;
 
             const check = gameMiddleware(socket, partidaId);
@@ -77,6 +79,7 @@ module.exports = (io, socket) => {
     // Atacar con un tanque
     socket.on('atacar', (payload) => {
         try {
+            console.log('[BACKEND][game.handler] 📥 Evento atacar recibido:', payload.partidaId);
             const { partidaId, atacanteId, defensorId } = payload;
 
             const check = gameMiddleware(socket, partidaId);
@@ -117,6 +120,7 @@ module.exports = (io, socket) => {
     // Fin de turno
     socket.on('finTurno', (payload) => {
         try {
+            console.log('[BACKEND][game.handler] 📥 Evento finTurno recibido:', payload.partidaId);
             const { partidaId } = payload;
 
             const check = gameMiddleware(socket, partidaId);
@@ -147,6 +151,7 @@ module.exports = (io, socket) => {
     // Abandono
     socket.on('abandonar', (payload) => {
         try {
+            console.log('[BACKEND][game.handler] 📥 Evento abandonar recibido:', payload.partidaId);
             const { partidaId } = payload;
 
             const check = gameMiddleware(socket, partidaId);

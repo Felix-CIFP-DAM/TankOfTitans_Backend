@@ -28,6 +28,9 @@ class PerfilService {
         }
     }
 
+    async obtenerTanques(usuarioId) {
+        return await apiService.get(`/api/perfil/${usuarioId}/tanques`);
+    }
 
 }
 

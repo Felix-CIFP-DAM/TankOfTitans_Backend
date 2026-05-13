@@ -24,6 +24,26 @@ module.exports = (io, socket) => {
         }
     });
 
+    // Obtener tanques del usuario
+    socket.on('obtener_tanques', async () => {
+        try {
+            const user = userManager.getUser(socket.id);
+            if (!user) {
+                socket.emit('error', { error: 'No has iniciado sesión' });
+                return;
+            }
+
+            console.log(`[BACKEND][perfil.handler] 📥 obtener_tanques para userId: ${user.id}`);
+            const tanques = await perfilService.obtenerTanques(user.id);
+            console.log(`[BACKEND][perfil.handler] 📤 Emitiendo tanques_usuario: ${tanques.length} tanques`);
+            socket.emit('tanques_usuario', tanques);
+
+        } catch (error) {
+            console.error('[BACKEND][perfil.handler] ❌ Error en obtener_tanques:', error.message);
+            socket.emit('error', { error: error.message });
+        }
+    });
+
 
     // Actualizar perfil
     socket.on('actualizar_perfil', async (payload) => {

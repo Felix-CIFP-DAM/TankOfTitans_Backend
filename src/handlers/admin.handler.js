@@ -52,4 +52,32 @@ module.exports = (io, socket) => {
         }
     });
 
+    // Guardar mapa
+    socket.on('mapa:guardar', async (payload) => {
+        try {
+            console.log(`[BACKEND][admin.handler] 📥 Evento mapa:guardar recibido: ${payload.nombreMapa}`);
+            
+            const user = userManager.getUser(socket.id);
+            if (!user) {
+                socket.emit('mapa:guardado', { success: false, mensaje: 'No has iniciado sesión' });
+                return;
+            }
+
+            const mapa = await adminService.crearMapa(payload);
+            
+            console.log(`[BACKEND][admin.handler] ✅ Mapa guardado correctamente: ${mapa.nombre}`);
+            socket.emit('mapa:guardado', {
+                success: true,
+                mapa
+            });
+
+        } catch (error) {
+            console.error('[BACKEND][admin.handler] ❌ Error en mapa:guardar:', error.message);
+            socket.emit('mapa:guardado', {
+                success: false,
+                mensaje: error.message
+            });
+        }
+    });
+
 };

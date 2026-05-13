@@ -67,6 +67,7 @@ module.exports = (io, socket) => {
             const token = generateToken(userData.userId, userData.nickname);
 
             // Guardamos la sesión en el UserManager
+            console.log(`[BACKEND][auth.handler] 💾 Guardando en UserManager: socketId=${socket.id}, userId=${userData.userId}`);
             userManager.loginUser(socket.id, {
                 id: userData.userId,
                 nickname: userData.nickname
