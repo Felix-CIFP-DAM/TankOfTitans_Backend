@@ -15,11 +15,15 @@ const gameMiddleware = (socket, partidaId) => {
         return { error: 'Partida no encontrada' };
     }
 
-    if (!gameState.jugadores[user.id]) {
+    const player = gameState.jugadores[user.id] || 
+                   Object.values(gameState.jugadores).find(j => String(j.id) === String(user.id));
+
+    if (!player) {
+        console.warn(`[BACKEND][game.middleware] ⚠️ Usuario ${user.id} (${user.nickname}) intentó actuar en partida ${partidaId} pero no figura como jugador.`);
         return { error: 'No estás en esta partida' };
     }
 
-    return { user, gameState };
+    return { user, gameState, player };
 };
 
 module.exports = gameMiddleware;

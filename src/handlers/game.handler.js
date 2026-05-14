@@ -8,7 +8,7 @@ module.exports = (io, socket) => {
     socket.on('colocarTanque', (payload) => {
         try {
             console.log('[BACKEND][game.handler] 📥 Evento colocarTanque recibido:', payload.partidaId);
-            const { partidaId, tanqueId, x, y } = payload;
+            const { partidaId, tanqueId, x, y, tanqueData } = payload;
 
             const check = gameMiddleware(socket, partidaId);
             if (check.error) {
@@ -18,7 +18,7 @@ module.exports = (io, socket) => {
 
             const { user, gameState } = check;
 
-            const resultado = gameState.colocarTanque(user.id, tanqueId, x, y);
+            const resultado = gameState.colocarTanque(user.id, tanqueId, x, y, tanqueData);
             if (resultado.error) {
                 socket.emit('error', resultado);
                 return;
@@ -31,9 +31,11 @@ module.exports = (io, socket) => {
                 estado: gameState.getEstado()
             });
 
-            // Si ambos jugadores han terminado de colocar, arrancamos oficialmente
             if (gameState.ambosListos()) {
-                const iniciado = gameState.iniciar();
+                const iniciado = gameState.iniciar((timeoutData) => {
+                    // This callback fires when the timer automatically ends a turn
+                    io.to(`game_${partidaId}`).emit('turnoCambiado', timeoutData);
+                });
 
                 if (iniciado.error) {
                     io.to(`game_${partidaId}`).emit('error', iniciado);

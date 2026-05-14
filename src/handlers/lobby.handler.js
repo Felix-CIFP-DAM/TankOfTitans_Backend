@@ -149,21 +149,23 @@ module.exports = (io, socket) => {
             const sockets = await io.in(`lobby_${partidaId}`).fetchSockets();
             console.log(`[BACKEND][lobby.handler] 👥 Sockets encontrados en sala lobby_${partidaId}:`, sockets.length);
 
-            const jugadores = sockets
-                .map(s => userManager.getUser(s.id))
-                .filter(Boolean);
+            // Obtenemos los DTOs de los jugadores desde la respuesta de la API
+            // El host es el que coincide con partida.hostId
+            const hostDTO = partida.jugadoresList.find(j => Number(j.id) === Number(partida.hostId));
+            const guestDTO = partida.jugadoresList.find(j => Number(j.id) !== Number(partida.hostId));
 
-            if (jugadores.length < 2) {
-                console.warn(`[BACKEND][lobby.handler] ⚠️ No hay suficientes jugadores conectados (${jugadores.length})`);
-                socket.emit('error', { error: 'Se necesitan 2 jugadores conectados' });
+            if (!hostDTO || !guestDTO) {
+                console.error('[BACKEND][lobby.handler] ❌ No se encontraron ambos jugadores en la respuesta de la API');
+                socket.emit('error', { error: 'Error al obtener datos de los jugadores' });
                 return;
             }
 
-            // Crea el GameState en memoria
+            // Crea el GameState en memoria usando los DTOs (que tienen PA, tanquesIds, etc.)
+            // Importante: Pasamos el hostDTO como primer jugador para que GameState sepa quién es quién
             gameManager.crear(
                 partidaId,
-                jugadores[0],
-                jugadores[1],
+                hostDTO,
+                guestDTO,
                 mapa
             );
 
