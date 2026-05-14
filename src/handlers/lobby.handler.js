@@ -133,18 +133,29 @@ module.exports = (io, socket) => {
 
             // Actualiza estado en la API
             const partida = await lobbyService.iniciarPartida(Number(user.id), partidaId);
+            console.log(`[BACKEND][lobby.handler] ✅ Partida ${partidaId} iniciada en API`);
 
-            // Carga un mapa aleatorio
-            const mapa = await mapService.getMapaAleatorio();
+            // Carga el mapa (el seleccionado o uno aleatorio)
+            let mapa;
+            if (partida.mapaId) {
+                console.log(`[BACKEND][lobby.handler] 🗺️ Usando mapa seleccionado: ${partida.mapaId}`);
+                mapa = await mapService.getMapa(partida.mapaId);
+            } else {
+                console.log('[BACKEND][lobby.handler] 🎲 No hay mapa seleccionado. Cargando uno aleatorio.');
+                mapa = await mapService.getMapaAleatorio();
+            }
 
             // Obtiene los datos de los jugadores de la sala
             const sockets = await io.in(`lobby_${partidaId}`).fetchSockets();
+            console.log(`[BACKEND][lobby.handler] 👥 Sockets encontrados en sala lobby_${partidaId}:`, sockets.length);
+
             const jugadores = sockets
                 .map(s => userManager.getUser(s.id))
                 .filter(Boolean);
 
             if (jugadores.length < 2) {
-                socket.emit('error', { error: 'Se necesitan 2 jugadores' });
+                console.warn(`[BACKEND][lobby.handler] ⚠️ No hay suficientes jugadores conectados (${jugadores.length})`);
+                socket.emit('error', { error: 'Se necesitan 2 jugadores conectados' });
                 return;
             }
 
@@ -165,13 +176,7 @@ module.exports = (io, socket) => {
             // Notifica a ambos jugadores que empiece la selección de tanques
             io.to(`game_${partidaId}`).emit('seleccionTanques', {
                 partidaId,
-                mapa: {
-                    id: mapa.id,
-                    nombre: mapa.nombre,
-                    ancho: mapa.ancho,
-                    alto: mapa.alto,
-                    casillas: mapa.casillas
-                },
+                mapa,
                 mensaje: 'Selecciona tus 3 tanques'
             });
 
@@ -276,6 +281,24 @@ module.exports = (io, socket) => {
             socket.emit('error', { error: error.message });
         }
     });
+
+    // Seleccionar mapa
+    socket.on('seleccionarMapa', async (payload) => {
+        try {
+            console.log('[BACKEND][lobby.handler] 📥 Evento seleccionarMapa recibido:', payload.mapaId);
+            const user = userManager.getUser(socket.id);
+            if (!user) return;
+ 
+            const { partidaId, mapaId } = payload;
+            await lobbyService.seleccionarMapa(Number(user.id), partidaId, mapaId);
+ 
+            const partida = await lobbyService.getEstadoPartida(partidaId);
+            io.to(`lobby_${partidaId}`).emit('estadoSala', partida);
+ 
+        } catch (error) {
+            socket.emit('error', { error: error.message });
+        }
+    });
 };
 
 async function iniciarPartidaAutomatico(io, partidaId) {
@@ -287,33 +310,61 @@ async function iniciarPartidaAutomatico(io, partidaId) {
 
         // Obtenemos el estado final de la sala
         const partida = await lobbyService.getEstadoPartida(partidaId);
-        const hostId = partida.hostId || (partida.jugadoresList.find(j => j.nickname === partida.hostNickname)?.id);
-
-        // Actualiza estado en la API (usamos el ID del host para la llamada)
+        console.log(`[BACKEND][lobby.handler] 🕒 Inicio automático para partida ${partidaId}. Host: ${partida.hostNickname}`);
+        
+        const hostId = partida.hostId;
+        if (!hostId) {
+            throw new Error('No se pudo identificar al host para iniciar la partida');
+        }
+ 
+        // Actualiza estado en la API
         await lobbyService.iniciarPartida(hostId, partidaId);
-
-        // Carga un mapa aleatorio
-        const mapa = await mapService.getMapaAleatorio();
-
+ 
+        // Carga el mapa
+        let mapa;
+        if (partida.mapaId) {
+            console.log(`[BACKEND][lobby.handler] 🗺️ Usando mapa seleccionado en automático: ${partida.mapaId}`);
+            mapa = await mapService.getMapa(partida.mapaId);
+        } else {
+            console.log('[BACKEND][lobby.handler] 🎲 Cargando mapa aleatorio en automático');
+            mapa = await mapService.getMapaAleatorio();
+        }
+ 
         // Obtiene los datos de los jugadores de la sala
         const sockets = await io.in(`lobby_${partidaId}`).fetchSockets();
+        console.log(`[BACKEND][lobby.handler] 👥 Sockets encontrados: ${sockets.length}`);
+ 
         const jugadores = sockets
             .map(s => userManager.getUser(s.id))
             .filter(Boolean);
+        if (sockets.length < 2) {
+            throw new Error(`No hay suficientes jugadores conectados (${sockets.length})`);
+        }
 
-        // Crea el GameState en memoria
-        gameManager.crear(partidaId, jugadores[0], jugadores[1], mapa);
+        // Obtener datos finales de los jugadores de la partida (con sus tanquesIds)
+        const partidaActualizada = await lobbyService.getEstadoPartida(partidaId);
+        const pJugadores = partidaActualizada.jugadoresList;
 
+        const j1Data = pJugadores.find(j => j.nickname === partidaActualizada.hostNickname);
+        const j2Data = pJugadores.find(j => j.nickname !== partidaActualizada.hostNickname);
+
+        const j1 = { ...userManager.getUser(sockets.find(s => s.id === j1Data.socketId)?.id), id: j1Data.userId, tanquesIds: j1Data.tanquesIds };
+        const j2 = { ...userManager.getUser(sockets.find(s => s.id !== j1Data.socketId)?.id), id: j2Data.userId, tanquesIds: j2Data.tanquesIds };
+
+        // Instancia el GameState en Node
+        gameManager.crear(partidaId, j1, j2, mapa);
+ 
         // Mueve a los jugadores a la sala del juego y notifica
         sockets.forEach(s => {
+            console.log(`[BACKEND][lobby.handler] ➡️ Socket ${s.id} movido a sala game_${partidaId}`);
             s.leave(`lobby_${partidaId}`);
             s.join(`game_${partidaId}`);
         });
-
+ 
         io.to(`game_${partidaId}`).emit('seleccionTanques', {
             partidaId,
             mapa,
-            mensaje: '¡Que comience la batalla! Selecciona tus tanques.'
+            mensaje: '¡Que comience la batalla! Coloca tus tanques cerca de tu base.'
         });
 
     } catch (error) {

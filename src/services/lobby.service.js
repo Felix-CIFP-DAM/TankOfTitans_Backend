@@ -70,6 +70,14 @@ class LobbyService {
             tanqueId
         });
     }
+
+    // Seleccionar mapa
+    async seleccionarMapa(usuarioId, partidaId, mapaId) {
+        return await apiService.post(`/api/lobby/seleccionarMapa/${partidaId}`, {
+            usuarioId,
+            mapaId
+        });
+    }
 }
 
 module.exports = new LobbyService();
