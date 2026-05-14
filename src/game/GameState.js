@@ -15,68 +15,108 @@ class GameState {
             [jugador1.id]: {
                 ...jugador1,
                 pa: INITIAL_PA,
-                tanquesSeleccionados: [] // tipos elegidos antes de iniciar
+                tanquesSeleccionados: jugador1.tanquesIds || [], // IDs de los tanques elegidos en lobby
+                tanquesColocados: [] // tanques ya puestos en mapa
             },
             [jugador2.id]: {
                 ...jugador2,
                 pa: INITIAL_PA,
-                tanquesSeleccionados: []
+                tanquesSeleccionados: jugador2.tanquesIds || [],
+                tanquesColocados: []
             }
         };
         this.tanques = [];
         this.turnoActual = jugador1.id;
-        this.estado = 'SELECCION'; // SELECCION → JUGANDO → FINALIZADA
+        this.estado = 'COLOCACION'; // COLOCACION → JUGANDO → FINALIZADA
         this.timer = null;
         this.fechaInicio = null;
     }
 
-    // Jugador selecciona sus 3 tanques antes de empezar
-    seleccionarTanques(jugadorId, tipos) {
-        if (this.estado !== 'SELECCION') {
-            return { error: 'La partida ya ha comenzado' };
+    // Jugador coloca uno de sus tanques en el mapa
+    colocarTanque(jugadorId, tanqueId, x, y) {
+        if (this.estado !== 'COLOCACION') {
+            return { error: 'No es la fase de colocación' };
         }
-        if (!this.jugadores[jugadorId]) {
-            return { error: 'Jugador no encontrado' };
-        }
-        if (tipos.length !== 3) {
-            return { error: 'Debes seleccionar exactamente 3 tanques' };
+        const jugador = this.jugadores[jugadorId];
+        if (!jugador) return { error: 'Jugador no encontrado' };
+
+        if (!jugador.tanquesSeleccionados.includes(tanqueId)) {
+            return { error: 'El tanque no pertenece al jugador' };
         }
 
-        const tiposValidos = ['SUPERPESADO', 'LIGERO', 'ARTILLERIA'];
-        for (const tipo of tipos) {
-            if (!tiposValidos.includes(tipo)) {
-                return { error: `Tipo de tanque inválido: ${tipo}` };
-            }
+        if (jugador.tanquesColocados.some(t => t.id === tanqueId)) {
+            return { error: 'El tanque ya ha sido colocado' };
         }
 
-        this.jugadores[jugadorId].tanquesSeleccionados = tipos;
-        return { success: true };
+        // Validar rango de base
+        const base = this._obtenerBaseJugador(jugadorId);
+        if (!base) return { error: 'Base no encontrada para el jugador' };
+
+        const dx = Math.abs(x - base.x);
+        const dy = Math.abs(y - base.y);
+        // Rango de colocación: 4 casillas desde la esquina de la base
+        if (dx > 4 || dy > 4) {
+            return { error: 'Debes colocar el tanque cerca de tu base' };
+        }
+
+        // Validar que la casilla esté libre y sea transitable
+        if (!this._esCasillaValidaColocacion(x, y)) {
+            return { error: 'Casilla inválida u ocupada' };
+        }
+
+        // Añadir tanque al estado (usamos un tipo genérico por ahora o buscamos el tipo real)
+        // Nota: En una versión real buscaríamos el tipo en la DB o pasaríamos el tipo desde el lobby
+        const tanque = TankFactory.crear(tanqueId, 'LIGERO', jugadorId, x, y); 
+        this.tanques.push(tanque);
+        jugador.tanquesColocados.push({ id: tanqueId, x, y });
+
+        return { success: true, tanque };
     }
 
-    // Comprueba si ambos jugadores han seleccionado sus tanques
+    _obtenerBaseJugador(jugadorId) {
+        if (!this.mapa || !this.mapa.data || !this.mapa.data.objetos) return null;
+        
+        const isHost = String(jugadorId) === String(Object.keys(this.jugadores)[0]);
+        const tipoBase = isHost ? 'Base_J1' : 'Base_J2';
+
+        for (let y = 0; y < this.mapa.data.objetos.length; y++) {
+            for (let x = 0; x < this.mapa.data.objetos[y].length; x++) {
+                const obj = this.mapa.data.objetos[y][x];
+                if (obj && obj.tipo === tipoBase) {
+                    return { x, y };
+                }
+            }
+        }
+        return null;
+    }
+
+    _esCasillaValidaColocacion(x, y) {
+        if (x < 0 || y < 0 || y >= this.mapa.data.suelo.length || x >= this.mapa.data.suelo[0].length) return false;
+        
+        const suelo = this.mapa.data.suelo[y][x];
+        const objeto = this.mapa.data.objetos[y][x];
+        const tanque = this.tanques.find(t => t.posX === x && t.posY === y);
+
+        if (suelo.tipo === 'No_Transitable') return false;
+        if (objeto && objeto.tipo === 'No_Transitable') return false;
+        if (tanque) return false;
+
+        return true;
+    }
+
+    // Comprueba si ambos jugadores han colocado sus 3 tanques
     ambosListos() {
         return Object.values(this.jugadores)
-            .every(j => j.tanquesSeleccionados.length === 3);
+            .every(j => j.tanquesColocados.length === 3);
     }
 
     // Despliega los tanques y arranca la partida
     iniciar() {
         if (!this.ambosListos()) {
-            return { error: 'Ambos jugadores deben seleccionar sus tanques' };
+            return { error: 'Ambos jugadores deben colocar sus 3 tanques' };
         }
 
-        const jugadorIds = Object.keys(this.jugadores);
-
-        // Posiciones iniciales: J1 en columna 0, J2 en columna 11
-        jugadorIds.forEach((jId, index) => {
-            const jugador = this.jugadores[jId];
-            jugador.tanquesSeleccionados.forEach((tipo, i) => {
-                const posX = index === 0 ? 0 : 11;
-                const posY = i * 2; // 0, 2, 4
-                const tanque = TankFactory.crear(i + 1, tipo, jId, posX, posY);
-                this.tanques.push(tanque);
-            });
-        });
+        // Ya no necesitamos crear tanques aquí, se crearon al colocarlos
 
         this.estado = 'JUGANDO';
         this.fechaInicio = new Date();

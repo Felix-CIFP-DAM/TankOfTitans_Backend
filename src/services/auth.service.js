@@ -18,15 +18,22 @@ class AuthService {
                 nickname,
                 password
             });
+            console.log('[BACKEND][auth.service] Respuesta raw de la API Java:', JSON.stringify(response));
             return {
-                userId: response.userId,
-                nickname: response.nombreUsuario,
-                token: response.token
+                userId:       response.userId,
+                nombre:       response.nombre,
+                nickname:     response.nickname,
+                token:        response.token,
+                icono:        response.icono,
+                iconoImagen:  response.iconoImagen,
+                rol:          response.rol
             };
         } catch (error) {
-            throw new Error('Usuario o contraseña incorrectos');
+            console.error('[BACKEND][auth.service] Error en login:', error.message);
+            throw error;
         }
     }
+
 }
 
 module.exports = new AuthService();

@@ -51,6 +51,7 @@ class ApiService {
     // POST genérico
     async post(endpoint, data) {
         try {
+            console.log(`[BACKEND][api.service] 📡 POST ${endpoint} - Body:`, JSON.stringify(data));
             const response = await this.client.post(endpoint, data, {
                 headers: this.getAuthHeaders()
             });
@@ -73,10 +74,11 @@ class ApiService {
     }
 
     // DELETE genérico
-    async delete(endpoint) {
+    async delete(endpoint, data) {
         try {
             const response = await this.client.delete(endpoint, {
-                headers: this.getAuthHeaders()
+                headers: this.getAuthHeaders(),
+                data: data
             });
             return response.data;
         } catch (error) {
