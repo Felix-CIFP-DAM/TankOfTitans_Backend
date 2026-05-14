@@ -1,7 +1,7 @@
 const userManager = require('../utils/UserManager');
 const gameManager = require('../game/GameManager');
 
-// Uso: llámalo dentro de los eventos del game.handler antes de ejecutar lógica
+// Uso: llamar dentro de los eventos del game.handler antes de ejecutar lógica
 const gameMiddleware = (socket, partidaId) => {
     const user = userManager.getUser(socket.id);
 

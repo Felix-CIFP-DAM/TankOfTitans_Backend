@@ -53,7 +53,7 @@ module.exports = (io, socket) => {
     // Mover un tanque
     socket.on('moverTanque', (payload) => {
         try {
-            console.log('[BACKEND][game.handler] 📥 Evento moverTanque recibido:', payload.partidaId);
+            console.log('[BACKEND][game.handler]  Evento moverTanque recibido:', payload.partidaId);
             const { partidaId, tanqueId, targetX, targetY } = payload;
 
             const check = gameMiddleware(socket, partidaId);

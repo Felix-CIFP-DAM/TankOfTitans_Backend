@@ -1,6 +1,6 @@
 module.exports = {
     cors: {
-        origin: '*', // cuando esté en producción cambiar por la URL de Angular
+        origin: '*', 
         methods: ['GET', 'POST']
     }
 };
