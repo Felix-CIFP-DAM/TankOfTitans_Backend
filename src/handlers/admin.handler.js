@@ -13,7 +13,6 @@ module.exports = (io, socket) => {
             }
 
             // Aquí se podría añadir una comprobación de rol si es necesario
-            // if (user.rol !== 'ADMIN') { ... }
 
             const { nombre } = payload;
             if (!nombre) {
