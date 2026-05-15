@@ -15,7 +15,8 @@ class GameState {
                 tanquesSeleccionados: (jugador1.tanquesIds || []).map(Number), 
                 tanquesColocados: [],
                 vida: jugador1.vida || 1000,
-                iconoImagen: jugador1.iconoImagen || 'recluta.png'
+                iconoImagen: jugador1.iconoImagen || 'recluta.png',
+                confirmado: false
             },
             [jugador2.id]: {
                 ...jugador2,
@@ -23,22 +24,26 @@ class GameState {
                 tanquesSeleccionados: (jugador2.tanquesIds || []).map(Number),
                 tanquesColocados: [],
                 vida: jugador2.vida || 1000,
-                iconoImagen: jugador2.iconoImagen || 'recluta.png'
+                iconoImagen: jugador2.iconoImagen || 'recluta.png',
+                confirmado: false
             }
         };
         this.tanques = [];
         this.escombros = [];
         this.turnoNumero = 1;
         this.turnoActual = jugador1.id;
-        this.estado = 'COLOCACION'; 
+        this.estado = 'JUGANDO'; 
         this.timer = null;
-        this.fechaInicio = null;
+        this.fechaInicio = new Date();
     }
 
     // Jugador coloca uno de sus tanques en el mapa
     colocarTanque(jugadorId, tanqueId, x, y, tanqueData) {
-        if (this.estado !== 'COLOCACION') {
-            return { error: 'No es la fase de colocación' };
+        if (this.estado !== 'JUGANDO') {
+            return { error: 'La partida no está activa' };
+        }
+        if (String(this.turnoActual) !== String(jugadorId)) {
+            return { error: 'No es tu turno' };
         }
         const jugador = this.jugadores[jugadorId];
         if (!jugador) return { error: 'Jugador no encontrado' };
@@ -146,18 +151,23 @@ class GameState {
         return true;
     }
 
+    confirmarColocacion(jugadorId) {
+        const jugador = this.jugadores[jugadorId];
+        if (jugador) {
+            jugador.confirmado = true;
+            return { success: true };
+        }
+        return { error: 'Jugador no encontrado' };
+    }
+
     ambosListos() {
-        return Object.values(this.jugadores).every(j => j.tanquesColocados.length === 3);
+        return Object.values(this.jugadores).every(j => 
+            j.tanquesColocados.length === 3 || j.confirmado
+        );
     }
 
     iniciar(ioCallback) {
-        if (!this.ambosListos()) return { error: 'Ambos jugadores deben colocar sus 3 tanques' };
-        this.estado = 'JUGANDO';
-        this.fechaInicio = new Date();
-
-        const ids = Object.keys(this.jugadores);
-        this.turnoActual = ids[Math.floor(Math.random() * ids.length)];
-        
+        // Ya no comprobamos ambosListos porque la colocación es parte del juego
         this.onTurnTimeout = ioCallback;
 
         this.timer = new GameTimer(

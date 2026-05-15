@@ -57,22 +57,39 @@ module.exports = (io, socket) => {
                 estado: gameState.getEstado()
             });
 
+        } catch (error) {
+            socket.emit('error', { error: error.message });
+        }
+    });
+
+    // Jugador confirma que ha terminado de colocar
+    socket.on('confirmarColocacion', (payload) => {
+        try {
+            const { partidaId } = payload;
+            const check = gameMiddleware(socket, partidaId);
+            if (check.error) return socket.emit('error', check);
+
+            const { user, gameState } = check;
+            const resultado = gameState.confirmarColocacion(user.id);
+            if (resultado.error) return socket.emit('error', resultado);
+
+            io.to(`game_${partidaId}`).emit('jugadorListoColocacion', { 
+                jugadorId: user.id,
+                estado: gameState.getEstado()
+            });
+
             if (gameState.ambosListos()) {
                 const iniciado = gameState.iniciar((timeoutData) => {
-                    // This callback fires when the timer automatically ends a turn
                     io.to(`game_${partidaId}`).emit('turnoCambiado', timeoutData);
                 });
-
                 if (iniciado.error) {
                     io.to(`game_${partidaId}`).emit('error', iniciado);
                     return;
                 }
-
                 io.to(`game_${partidaId}`).emit('partidaIniciada', {
                     estado: gameState.getEstado()
                 });
             }
-
         } catch (error) {
             socket.emit('error', { error: error.message });
         }

@@ -102,7 +102,7 @@ module.exports = (io, socket) => {
             // Verificar si todos están listos para iniciar cuenta atrás
             if (partida.jugadoresList.length >= 2 && partida.jugadoresList.every(j => j.listo)) {
                 console.log(`[BACKEND][lobby.handler] 🕒 Todos listos en sala ${partidaId}. Iniciando cuenta atrás.`);
-                
+
                 let count = 5;
                 const interval = setInterval(() => {
                     io.to(`lobby_${partidaId}`).emit('cuentaAtras', count);
@@ -160,14 +160,17 @@ module.exports = (io, socket) => {
                 return;
             }
 
-            // Crea el GameState en memoria usando los DTOs (que tienen PA, tanquesIds, etc.)
-            // Importante: Pasamos el hostDTO como primer jugador para que GameState sepa quién es quién
-            gameManager.crear(
+            const gameState = gameManager.crear(
                 partidaId,
                 hostDTO,
                 guestDTO,
                 mapa
             );
+
+            // Iniciar la partida inmediatamente (arranca el timer y turnos)
+            gameState.iniciar((timeoutData) => {
+                io.to(`game_${partidaId}`).emit('turnoCambiado', timeoutData);
+            });
 
             // Mueve a los jugadores a la sala del juego
             sockets.forEach(s => {
@@ -294,13 +297,13 @@ module.exports = (io, socket) => {
             console.log('[BACKEND][lobby.handler] 📥 Evento seleccionarMapa recibido:', payload.mapaId);
             const user = userManager.getUser(socket.id);
             if (!user) return;
- 
+
             const { partidaId, mapaId } = payload;
             await lobbyService.seleccionarMapa(Number(user.id), partidaId, mapaId);
- 
+
             const partida = await lobbyService.getEstadoPartida(partidaId);
             io.to(`lobby_${partidaId}`).emit('estadoSala', partida);
- 
+
         } catch (error) {
             socket.emit('error', { error: error.message });
         }
@@ -314,10 +317,10 @@ module.exports = (io, socket) => {
             if (!user) return;
 
             const { partidaId } = payload;
-            
+
             // Llamamos a la API para limpiar
             await lobbyService.abandonarPartida(Number(user.id), partidaId);
-            
+
             // Si el GameManager lo tiene registrado, lo borramos de memoria
             if (gameManager.existe(partidaId)) {
                 gameManager.delete(partidaId);
@@ -366,7 +369,7 @@ async function iniciarPartidaAutomatico(io, partidaId) {
         // Si lo leemos después, la API puede haber borrado/modificado tanquesIds
         const partidaPrevia = await lobbyService.getEstadoPartida(partidaId);
         console.log(`[BACKEND][lobby.handler] 🕒 Inicio automático para partida ${partidaId}. Host: ${partidaPrevia.hostNickname}`);
-        
+
         const hostId = partidaPrevia.hostId;
         if (!hostId) {
             throw new Error('No se pudo identificar al host para iniciar la partida');
@@ -391,7 +394,7 @@ async function iniciarPartidaAutomatico(io, partidaId) {
         // --- PASO 2: Actualizar estado en la API (cambia a EN_CURSO) ---
         await lobbyService.iniciarPartida(hostId, partidaId);
         console.log(`[BACKEND][lobby.handler] ✅ Partida ${partidaId} marcada EN_CURSO en la API`);
- 
+
         // --- PASO 3: Cargar el mapa ---
         let mapa;
         if (partidaPrevia.mapaId) {
@@ -403,26 +406,32 @@ async function iniciarPartidaAutomatico(io, partidaId) {
         }
 
         // --- PASO 4: Crear el GameState con los datos capturados pre-inicio ---
-        const j1 = { 
-            id: j1Data.id, 
-            nickname: j1Data.nickname, 
-            tanquesIds: (j1Data.tanquesIds || []).map(Number), 
+        const j1 = {
+            id: j1Data.id,
+            nickname: j1Data.nickname,
+            tanquesIds: (j1Data.tanquesIds || []).map(Number),
             pa: j1Data.pa || 100,   // JugadorLobbyDTO usa 'pa', no 'puntosAccion'
             vida: j1Data.vida || 1000,
             iconoImagen: j1Data.iconoImagen || 'recluta.png'
         };
-        const j2 = { 
-            id: j2Data.id, 
-            nickname: j2Data.nickname, 
-            tanquesIds: (j2Data.tanquesIds || []).map(Number), 
+        const j2 = {
+            id: j2Data.id,
+            nickname: j2Data.nickname,
+            tanquesIds: (j2Data.tanquesIds || []).map(Number),
             pa: j2Data.pa || 100,   // JugadorLobbyDTO usa 'pa', no 'puntosAccion'
             vida: j2Data.vida || 1000,
             iconoImagen: j2Data.iconoImagen || 'recluta.png'
         };
 
-        gameManager.crear(partidaId, j1, j2, mapa);
-        console.log(`[BACKEND][lobby.handler] 🎮 GameState creado para partida ${partidaId}`);
- 
+        const gameState = gameManager.crear(partidaId, j1, j2, mapa);
+        
+        // Iniciar la partida inmediatamente (arranca el timer y turnos)
+        gameState.iniciar((timeoutData) => {
+            io.to(`game_${partidaId}`).emit('turnoCambiado', timeoutData);
+        });
+
+        console.log(`[BACKEND][lobby.handler] 🎮 GameState creado e iniciado para partida ${partidaId}`);
+
         // --- PASO 5: Mover sockets a sala del juego ---
         const sockets = await io.in(`lobby_${partidaId}`).fetchSockets();
         console.log(`[BACKEND][lobby.handler] 👥 Sockets en lobby para mover: ${sockets.length}`);
@@ -432,7 +441,7 @@ async function iniciarPartidaAutomatico(io, partidaId) {
             s.leave(`lobby_${partidaId}`);
             s.join(`game_${partidaId}`);
         });
- 
+
         // --- PASO 6: Notificar el inicio ---
         io.to(`game_${partidaId}`).emit('seleccionTanques', {
             partidaId,
