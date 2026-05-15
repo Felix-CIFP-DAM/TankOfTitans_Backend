@@ -26,5 +26,10 @@ class GameService {
             tanquesMuertosJ2
         });
     }
+
+    // Resetear partida a estado de preparación
+    async resetearPartida(partidaId) {
+        return await apiService.post(`/api/partidas/${partidaId}/reset`);
+    }
 }
 module.exports = new GameService();

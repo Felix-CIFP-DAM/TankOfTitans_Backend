@@ -7,9 +7,6 @@ class GameManager {
 
     // Crea y guarda una nueva partida
     crear(partidaId, jugador1, jugador2, mapa) {
-        if (this.partidas.has(partidaId)) {
-            throw new Error(`La partida ${partidaId} ya existe`);
-        }
         const gameState = new GameState(partidaId, jugador1, jugador2, mapa);
         this.partidas.set(partidaId, gameState);
         return gameState;

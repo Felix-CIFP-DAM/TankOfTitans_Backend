@@ -78,6 +78,13 @@ class LobbyService {
             mapaId
         });
     }
+
+    // Abandonar partida
+    async abandonarPartida(usuarioId, partidaId) {
+        return await apiService.post(`/api/lobby/abandonar/${partidaId}`, {
+            usuarioId
+        });
+    }
 }
 
 module.exports = new LobbyService();

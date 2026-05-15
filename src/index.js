@@ -34,31 +34,57 @@ io.on('connection', (socket) => {
     adminHandler(io, socket);
 
 
-    socket.on('disconnect', async () => {
-        console.log(`Cliente desconectado: ${socket.id}`);
-
+    socket.on('disconnecting', async () => {
         const user = userManager.getUser(socket.id);
         if (user) {
             try {
-                const partidas = await lobbyService.listarPartidas();
-                const partidaDelUsuario = partidas.find(
-                    p => p.hostNickname === user.nickname
-                );
-                if (partidaDelUsuario) {
-                    await lobbyService.cambiarHost(
-                        partidaDelUsuario.id, user.id
-                    );
-                    io.to(`lobby_${partidaDelUsuario.id}`)
-                        .emit('hostCambiado', {
-                            message: 'El host se ha desconectado, nuevo host asignado'
-                        });
+                // Buscamos si estaba en alguna sala de lobby_ o game_
+                const rooms = Array.from(socket.rooms);
+                const gameRoom = rooms.find(r => r.startsWith('lobby_') || r.startsWith('game_'));
+                
+                if (gameRoom) {
+                    const partidaId = gameRoom.split('_')[1];
+                    console.log(`[BACKEND][index] 🔌 Cliente ${user.nickname} desconectándose de partida ${partidaId}. Dando 5s de margen para reconexión...`);
+                    
+                    const timeoutId = setTimeout(async () => {
+                        console.log(`[BACKEND][index] ⏰ Margen expirado para ${user.nickname}. Ejecutando abandono automático de partida ${partidaId}`);
+                        try {
+                            await lobbyService.abandonarPartida(Number(user.id), partidaId);
+                            
+                            const gameManager = require('./game/GameManager');
+                            if (gameManager.existe(partidaId)) {
+                                gameManager.delete(partidaId);
+                            }
+
+                            io.to(`lobby_${partidaId}`).emit('jugadorAbandono', {
+                                message: `El jugador ${user.nickname} se ha desconectado.`
+                            });
+                            io.to(`game_${partidaId}`).emit('jugadorAbandono', {
+                                message: `El jugador ${user.nickname} se ha desconectado.`
+                            });
+
+                            // Actualizar al que se queda
+                            const partidaActualizada = await lobbyService.getEstadoPartida(partidaId);
+                            io.to(`lobby_${partidaId}`).emit('estadoSala', partidaActualizada);
+                            
+                            const partidas = await lobbyService.listarPartidas();
+                            io.emit('listaPartidas', partidas);
+                        } catch (err) {
+                            // Ignorar si la partida ya no existe
+                        }
+                    }, 5000); // 5 segundos para recargar la página
+
+                    userManager.setDisconnectTimeout(user.id, timeoutId);
                 }
             } catch (error) {
-                console.error('Error al gestionar desconexión:', error.message);
+                console.error('[BACKEND][index] ❌ Error al gestionar desconexión:', error.message);
             }
-
-            userManager.logoutUser(socket.id);
         }
+    });
+
+    socket.on('disconnect', () => {
+        console.log(`Cliente desconectado: ${socket.id}`);
+        userManager.logoutUser(socket.id);
     });
 });
 

@@ -9,7 +9,7 @@ const gameMiddleware = (socket, partidaId) => {
         return { error: 'No has iniciado sesión' };
     }
 
-    const gameState = gameManager.get(partidaId);
+    const gameState = gameManager.get(Number(partidaId)) || gameManager.get(String(partidaId));
 
     if (!gameState) {
         return { error: 'Partida no encontrada' };

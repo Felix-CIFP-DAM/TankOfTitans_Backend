@@ -48,7 +48,7 @@ module.exports = (io, socket) => {
 
             if (!nickname || !password) {
                 socket.emit('loginError', {
-                    error: 'Nickname y password son obligatorios'
+                    error: 'Nickname o email y password son obligatorios'
                 });
                 return;
             }

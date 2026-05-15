@@ -30,20 +30,16 @@ class CombatManager {
     }
 
     // Valida y ejecuta un movimiento
-    static mover(tanque, targetX, targetY, todosTanques, casillas) {
+    static mover(tanque, targetX, targetY, todosTanques, mapData) {
         if (!tanque.vivo) {
             return { error: 'El tanque está destruido' };
         }
-        if (tanque.haMovido) {
-            return { error: 'Este tanque ya se ha movido este turno' };
-        }
-        if (!isValidMove(tanque, targetX, targetY, todosTanques, casillas)) {
+        if (!isValidMove(tanque, targetX, targetY, todosTanques, mapData)) {
             return { error: 'Movimiento inválido' };
         }
 
         tanque.posX = targetX;
         tanque.posY = targetY;
-        tanque.haMovido = true;
 
         return { success: true, tanque };
     }
@@ -56,20 +52,11 @@ class CombatManager {
         if (!defensor.vivo) {
             return { error: 'El objetivo ya está destruido' };
         }
-        if (atacante.haAtacado) {
-            return { error: 'Este tanque ya ha atacado este turno' };
-        }
         if (!isValidAttack(atacante, defensor)) {
             return { error: 'El objetivo está fuera del rango de ataque' };
         }
 
-        // Artillería no puede mover y atacar en el mismo turno
-        if (atacante.tipo === 'ARTILLERIA' && atacante.haMovido) {
-            return { error: 'La artillería no puede mover y atacar en el mismo turno' };
-        }
-
         const resultado = this.aplicarDaño(atacante, defensor);
-        atacante.haAtacado = true;
 
         return {
             success: true,

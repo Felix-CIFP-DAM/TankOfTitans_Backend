@@ -32,6 +32,10 @@ class PerfilService {
         return await apiService.get(`/api/perfil/${usuarioId}/tanques`);
     }
 
+    async listarAvatares(usuarioId) {
+        return await apiService.get(`/api/avatars/usuario/${usuarioId}`);
+    }
+
 }
 
 module.exports = new PerfilService();

@@ -43,6 +43,25 @@ module.exports = (io, socket) => {
             socket.emit('error', { error: error.message });
         }
     });
+    
+    // Listar avatares (con info de si el usuario los tiene)
+    socket.on('listar_avatares', async () => {
+        try {
+            const user = userManager.getUser(socket.id);
+            if (!user) {
+                socket.emit('error', { error: 'No has iniciado sesión' });
+                return;
+            }
+
+            console.log(`[BACKEND][perfil.handler] 📥 listar_avatares para userId: ${user.id}`);
+            const avatares = await perfilService.listarAvatares(user.id);
+            socket.emit('avatares_lista', avatares);
+
+        } catch (error) {
+            console.error('[BACKEND][perfil.handler] ❌ Error en listar_avatares:', error.message);
+            socket.emit('error', { error: error.message });
+        }
+    });
 
 
     // Actualizar perfil
