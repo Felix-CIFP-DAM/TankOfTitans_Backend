@@ -13,6 +13,7 @@ const lobbyHandler = require('./handlers/lobby.handler');
 const gameHandler = require('./handlers/game.handler');
 const perfilHandler = require('./handlers/perfil.handler');
 const adminHandler = require('./handlers/admin.handler');
+const tiendaHandler = require('./handlers/tienda.handler');
 
 
 const app = express();
@@ -32,6 +33,7 @@ io.on('connection', (socket) => {
     gameHandler(io, socket);
     perfilHandler(io, socket);
     adminHandler(io, socket);
+    tiendaHandler(io, socket);
 
 
     socket.on('disconnecting', async () => {

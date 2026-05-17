@@ -9,6 +9,7 @@ class ApiService {
         // Instancia de axios con la URL base de Spring Boot
         this.client = axios.create({
             baseURL: this.baseURL,
+            timeout: 15000,
             headers: { 'Content-Type': 'application/json' }
         });
     }
@@ -88,11 +89,18 @@ class ApiService {
 
     handleError(error) {
         if (error.response) {
-            // La API respondió con un error
-            throw new Error(error.response.data.error || 'Error en la API');
+            // La API respondió con un error (4xx o 5xx)
+            const detail = error.response.data.message || error.response.data.error || 'Sin detalle';
+            console.error(`[BACKEND][api.service] ❌ Error ${error.response.status}: ${detail}`);
+            throw new Error(`API Error (${error.response.status}): ${detail}`);
+        } else if (error.request) {
+            // La petición se hizo pero no hubo respuesta (API caída o timeout)
+            console.error('[BACKEND][api.service] ❌ No hubo respuesta de la API');
+            throw new Error('No se pudo conectar con la API (Sin respuesta)');
         } else {
-            // No hubo respuesta (API caída, etc.)
-            throw new Error('No se pudo conectar con la API');
+            // Error al configurar la petición
+            console.error('[BACKEND][api.service] ❌ Error de configuración:', error.message);
+            throw new Error(`Error local: ${error.message}`);
         }
     }
 }
